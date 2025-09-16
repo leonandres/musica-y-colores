@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Música</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            color: #fdbb2d;
+        }
+        
+        .visualization-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        canvas {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #fdbb2d;
+            color: #1a2a6c;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:hover {
+            background: #ffcc44;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            font-size: 1.1rem;
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .indicators {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            min-width: 120px;
+        }
+        
+        .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #fdbb2d;
+        }
+        
+        .label {
+            font-size: 0.9rem;
+            margin-top: 5px;
+            color: #ccc;
+        }
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .instructions h2 {
+            margin-top: 0;
+            color: #fdbb2d;
+        }
+        
+        footer {
+            margin-top: 40px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visualizador de Música</h1>
+        <div class="subtitle">Proyecto escolar - Visualización de audio en tiempo real</div>
+        
+        <div class="controls">
+            <button id="startBtn">Comenzar</button>
+            <button id="stopBtn">Detener</button>
+        </div>
+        
+        <div class="status" id="status">Presiona "Comenzar" para iniciar el visualizador</div>
+        
+        <div class="visualization-container">
+            <canvas id="visualizer" width="800" height="300"></canvas>
+            
+            <div class="indicators">
+                <div class="indicator">
+                    <div class="value" id="volumeValue">0</div>
+                    <div class="label">Volumen</div>
+                </div>
+                <div class="indicator">
+                    <div class="value" id="bassValue">0</div>
+                    <div class="label">Bajos</div>
+                </div>
+                <div class="indicator">
+                    <div class="value" id="trebleValue">0</div>
+                    <div class="label">Agudos</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h2>Instrucciones:</h2>
+            <p>1. Haz clic en "Comenzar" y permite el acceso al micrófono cuando tu navegador lo solicite.</p>
+            <p>2. Reproduce música o haz sonidos cerca de tu micrófono.</p>
+            <p>3. Observa cómo la visualización responde al volumen, bajos y agudos de la música.</p>
+            <p>4. Usa "Detener" para finalizar la visualización.</p>
+        </div>
+        
+        <footer>
+            <p>Proyecto escolar de Visualización de Audio - Funciona mejor con Chrome o Edge</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos del DOM
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const status = document.getElementById('status');
+            const volumeValue = document.getElementById('volumeValue');
+            const bassValue = document.getElementById('bassValue');
+            const trebleValue = document.getElementById('trebleValue');
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            
+            // Variables de audio
+            let audioContext;
+            let analyser;
+            let microphone;
+            let javascriptNode;
+            let dataArray;
+            let isActive = false;
+            
+            // Configuración del analizador
+            const bufferSize = 2048;
+            const fftSize = 256;
+            
+            // Iniciar visualización
+            startBtn.addEventListener('click', function() {
+                if (isActive) return;
+                
+                try {
+                    // Crear contexto de audio
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = fftSize;
+                    
+                    // Conectar el micrófono
+                    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+                        .then(function(stream) {
+                            microphone = audioContext.createMediaStreamSource(stream);
+                            microphone.connect(analyser);
+                            
+                            status.textContent = "Visualización activa. ¡Reproduce música!";
+                            status.style.background = "rgba(0, 200, 0, 0.3)";
+                            isActive = true;
+                            
+                            // Preparar para el análisis
+                            dataArray = new Uint8Array(analyser.frequencyBinCount);
+                            
+                            // Iniciar bucle de visualización
+                            visualize();
+                        })
+                        .catch(function(err) {
+                            status.textContent = "Error al acceder al micrófono: " + err.message;
+                            status.style.background = "rgba(200, 0, 0, 0.3)";
+                        });
+                } catch (e) {
+                    status.textContent = "Error: " + e.message;
+                    status.style.background = "rgba(200, 0, 0, 0.3)";
+                }
+            });
+            
+            // Detener visualización
+            stopBtn.addEventListener('click', function() {
+                if (!isActive) return;
+                
+                if (microphone) {
+                    microphone.disconnect();
+                }
+                
+                if (audioContext) {
+                    audioContext.close();
+                }
+                
+                status.textContent = "Visualización detenida";
+                status.style.background = "rgba(255, 255, 255, 0.1)";
+                isActive = false;
+                
+                // Limpiar el canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Reiniciar valores
+                volumeValue.textContent = "0";
+                bassValue.textContent = "0";
+                trebleValue.textContent = "0";
+            });
+            
+            // Función de visualización
+            function visualize() {
+                if (!isActive) return;
+                
+                // Solicitar el siguiente frame de animación
+                requestAnimationFrame(visualize);
+                
+                // Obtener datos de frecuencia
+                analyser.getByteFrequencyData(dataArray);
+                
+                // Calcular valores
+                const volume = calculateVolume(dataArray);
+                const bass = calculateBass(dataArray);
+                const treble = calculateTreble(dataArray);
+                
+                // Actualizar indicadores
+                volumeValue.textContent = Math.round(volume);
+                bassValue.textContent = Math.round(bass);
+                trebleValue.textContent = Math.round(treble);
+                
+                // Dibujar visualización
+                drawVisualization(dataArray, volume, bass, treble);
+            }
+            
+            // Calcular volumen (valor promedio de todas las frecuencias)
+            function calculateVolume(data) {
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    sum += data[i];
+                }
+                return sum / data.length;
+            }
+            
+            // Calcular bajos (primeras frecuencias)
+            function calculateBass(data) {
+                let sum = 0;
+                const bassBins = 10; // Número de bins de frecuencia para bajos
+                for (let i = 0; i < bassBins; i++) {
+                    sum += data[i];
+                }
+                return sum / bassBins;
+            }
+            
+            // Calcular agudos (últimas frecuencias)
+            function calculateTreble(data) {
+                let sum = 0;
+                const trebleBins = 10; // Número de bins de frecuencia para agudos
+                for (let i = data.length - trebleBins; i < data.length; i++) {
+                    sum += data[i];
+                }
+                return sum / trebleBins;
+            }
+            
+            // Dibujar visualización
+            function drawVisualization(data, volume, bass, treble) {
+                // Limpiar canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Dibujar fondo
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Dibujar visualización de onda
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = `hsl(${volume * 1.5}, 100%, 60%)`;
+                
+                const sliceWidth = canvas.width / data.length;
+                let x = 0;
+                
+                for (let i = 0; i < data.length; i++) {
+                    const v = data[i] / 255.0;
+                    const y = v * canvas.height;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                ctx.stroke();
+                
+                // Dibujar círculo de volumen
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, canvas.height / 2, volume / 2, 0, 2 * Math.PI);
+                ctx.fillStyle = `hsla(${bass * 2}, 100%, 50%, 0.4)`;
+                ctx.fill();
+                
+                // Dibujar barras de bajos
+                const barCount = 20;
+                const barWidth = canvas.width / barCount;
+                
+                for (let i = 0; i < barCount; i++) {
+                    const barHeight = (data[i] / 255) * canvas.height / 2;
+                    ctx.fillStyle = `hsl(${i * 10 + treble}, 100%, 60%)`;
+                    ctx.fillRect(i * barWidth, canvas.height - barHeight, barWidth - 2, barHeight);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
